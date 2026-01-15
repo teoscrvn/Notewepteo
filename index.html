@@ -3,152 +3,237 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Web Note Share</title>
+<title>Note Share</title>
 
 <style>
-body{
-    margin:0;
-    padding:0;
-    background:#fff;
-    font-family: Arial, sans-serif;
-}
+body{margin:0;background:#f5f6fa;font-family:Arial}
+.page{max-width:800px;margin:auto;padding:15px}
+.card{background:#fff;border-radius:12px;padding:15px;margin-bottom:15px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
 
-.page{
-    max-width:800px;
-    margin:auto;
-    padding:20px;
+input,textarea{
+  width:100%;
+  border:1px solid #ddd;
+  border-radius:10px;
+  padding:12px;
+  font-size:16px;
+  outline:none;
 }
-
-input, textarea{
-    width:100%;
-    border:none;
-    outline:none;
-    font-size:16px;
-    margin-bottom:15px;
-}
-
-input{
-    font-size:22px;
-    font-weight:bold;
-}
+input:focus,textarea:focus{border-color:#007bff}
 
 textarea{
-    min-height:250px;
-    resize:none;
+  min-height:350px;
+  resize:none;
 }
 
 button{
-    width:100%;
-    padding:12px;
-    font-size:16px;
-    background:#007bff;
-    color:white;
-    border:none;
-    border-radius:6px;
-    cursor:pointer;
+  padding:10px 14px;
+  border:none;
+  border-radius:8px;
+  background:#007bff;
+  color:#fff;
+  font-size:15px;
 }
 
-.note-content a{
-    color:#007bff;
-    text-decoration:underline;
-    word-break:break-all;
-}
+.note-content a{color:#007bff;word-break:break-all}
 
-.comment-box{
-    margin-top:30px;
-    border-top:1px solid #ddd;
-    padding-top:15px;
+/* COMMENT */
+.comment-input{
+  display:flex;
+  gap:10px;
+}
+.comment-input input{
+  flex:1;
+  border-radius:20px;
 }
 
 .comment{
-    padding:8px;
-    border-bottom:1px solid #eee;
-    font-size:14px;
+  display:flex;
+  gap:10px;
+  margin-top:15px;
+}
+.avatar{
+  width:38px;
+  height:38px;
+  border-radius:50%;
+  background:#007bff;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+}
+.c-body{
+  background:#f0f2f5;
+  padding:10px;
+  border-radius:12px;
+  flex:1;
+}
+.c-name{font-weight:bold;font-size:14px}
+.c-time{font-size:11px;color:#666}
+.reply-btn{font-size:12px;color:#007bff;cursor:pointer;margin-top:5px}
+
+.reply-box{
+  margin-top:8px;
+  display:flex;
+  gap:8px;
+}
+.reply-box input{border-radius:18px}
+
+.reply{
+  margin-top:6px;
+  font-size:13px;
+  color:#333;
 }
 </style>
 </head>
 <body>
 
 <div class="page" id="createPage">
-    <input id="title" placeholder="Tiêu đề note...">
-    <textarea id="content" placeholder="Nhập nội dung... dán link thoải mái"></textarea>
+
+  <div class="card" id="accountBox">
+    <h3>Tạo tên hiển thị</h3>
+    <input id="nameInput" placeholder="Nhập tên của bạn">
+    <button onclick="saveName()">Lưu</button>
+  </div>
+
+  <div class="card">
+    <input id="title" placeholder="Tiêu đề note">
+    <textarea id="content" placeholder="Nhập nội dung note..."></textarea>
     <button onclick="createLink()">🔗 Tạo link</button>
+  </div>
+
+  <div class="card">
+    <h3>Link đã tạo</h3>
+    <div id="myLinks">Chưa có</div>
+  </div>
 </div>
 
-<div class="page" id="viewPage" style="display:none;">
+<div class="page" id="viewPage" style="display:none">
+  <div class="card">
     <h2 id="viewTitle"></h2>
     <div id="viewContent" class="note-content"></div>
+  </div>
 
-    <div class="comment-box">
-        <h3>Bình luận</h3>
-        <input id="commentInput" placeholder="Nhập bình luận...">
-        <button onclick="addComment()">Gửi bình luận</button>
-        <div id="comments"></div>
+  <div class="card">
+    <h3>Bình luận</h3>
+    <div class="comment-input">
+      <input id="commentInput" placeholder="Viết bình luận...">
+      <button onclick="addComment()">Gửi</button>
     </div>
+    <div id="comments"></div>
+  </div>
 </div>
 
 <script>
-function autoLink(text){
-    return text.replace(
-        /(https?:\/\/[^\s]+)/g,
-        '<a href="$1" target="_blank">$1</a>'
-    ).replace(/\n/g,"<br>");
+// ===== USER =====
+let userId = localStorage.getItem("uid");
+if(!userId){
+  userId="u"+Date.now();
+  localStorage.setItem("uid",userId);
+}
+let userName = localStorage.getItem("uname");
+
+// ===== ACCOUNT =====
+function saveName(){
+  const n=nameInput.value.trim();
+  if(!n) return alert("Nhập tên");
+  localStorage.setItem("uname",n);
+  userName=n;
+  accountBox.style.display="none";
+}
+if(userName) accountBox.style.display="none";
+
+// ===== UTIL =====
+function autoLink(t){
+  return t.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>').replace(/\n/g,"<br>");
 }
 
-const params = new URLSearchParams(window.location.search);
-const data = params.get("data");
+const params=new URLSearchParams(location.search);
+const id=params.get("id");
+const notes=JSON.parse(localStorage.getItem("notes")||"{}");
 
-if(data){
-    document.getElementById("createPage").style.display="none";
-    document.getElementById("viewPage").style.display="block";
-
-    const decoded = JSON.parse(atob(data));
-    document.getElementById("viewTitle").innerText = decoded.title;
-    document.getElementById("viewContent").innerHTML = autoLink(decoded.content);
-
+// ===== VIEW =====
+if(id){
+  const n=notes[id];
+  if(!n) alert("Không tồn tại");
+  else{
+    createPage.style.display="none";
+    viewPage.style.display="block";
+    viewTitle.innerText=n.title;
+    viewContent.innerHTML=autoLink(n.content);
     loadComments();
-}
+  }
+}else renderMyLinks();
 
+// ===== CREATE =====
 function createLink(){
-    const title = document.getElementById("title").value.trim();
-    const content = document.getElementById("content").value.trim();
-
-    if(!title || !content){
-        alert("Nhập đủ tiêu đề và nội dung");
-        return;
-    }
-
-    const obj = {title, content};
-    const encoded = btoa(JSON.stringify(obj));
-    const link = location.origin + location.pathname + "?data=" + encoded;
-
-    navigator.clipboard.writeText(link);
-    alert("Đã tạo link và copy 📋\n\n" + link);
+  if(!userName) return alert("Tạo tên trước");
+  const t=title.value.trim(),c=content.value.trim();
+  if(!t||!c) return alert("Thiếu nội dung");
+  const id="n"+Date.now();
+  notes[id]={title:t,content:c,owner:userId,time:new Date().toLocaleString()};
+  localStorage.setItem("notes",JSON.stringify(notes));
+  const link=location.origin+location.pathname+"?id="+id;
+  navigator.clipboard.writeText(link);
+  alert("Đã copy link");
+  renderMyLinks();
 }
 
+// ===== LINKS =====
+function renderMyLinks(){
+  const mine=Object.entries(notes).filter(x=>x[1].owner===userId);
+  myLinks.innerHTML=mine.length
+    ? mine.map((x,i)=>`${i+1}. <a href="?id=${x[0]}">${x[1].title}</a>`).join("<br>")
+    : "Chưa có";
+}
+
+// ===== COMMENTS =====
 function loadComments(){
-    const key = "cmt_" + data;
-    const list = JSON.parse(localStorage.getItem(key) || "[]");
-    const box = document.getElementById("comments");
-    box.innerHTML = "";
-    list.forEach(c=>{
-        const div = document.createElement("div");
-        div.className="comment";
-        div.innerText=c;
-        box.appendChild(div);
-    });
+  const key="cmt_"+id;
+  const data=JSON.parse(localStorage.getItem(key)||"[]");
+  comments.innerHTML="";
+  data.forEach(c=>{
+    comments.innerHTML+=`
+    <div class="comment">
+      <div class="avatar">${c.name[0]}</div>
+      <div class="c-body">
+        <div class="c-name">${c.name}</div>
+        <div>${c.text}</div>
+        <div class="c-time">${c.time}</div>
+        ${notes[id].owner===userId?`<div class="reply-btn" onclick="showReply(${c.id})">Trả lời</div>`:""}
+        <div id="r${c.id}"></div>
+        ${c.reply.map(r=>`<div class="reply">↳ ${r}</div>`).join("")}
+      </div>
+    </div>`;
+  });
 }
 
 function addComment(){
-    const input = document.getElementById("commentInput");
-    if(!input.value.trim()) return;
+  if(!userName) return alert("Chưa có tên");
+  const t=commentInput.value.trim();
+  if(!t) return;
+  const key="cmt_"+id;
+  const data=JSON.parse(localStorage.getItem(key)||"[]");
+  data.push({id:Date.now(),name:userName,text:t,time:new Date().toLocaleString(),reply:[]});
+  localStorage.setItem(key,JSON.stringify(data));
+  commentInput.value="";
+  loadComments();
+}
 
-    const key = "cmt_" + data;
-    const list = JSON.parse(localStorage.getItem(key) || "[]");
-    list.push(input.value.trim());
-    localStorage.setItem(key, JSON.stringify(list));
-    input.value="";
-    loadComments();
+function showReply(cid){
+  document.getElementById("r"+cid).innerHTML=`
+    <div class="reply-box">
+      <input placeholder="Trả lời..." onkeydown="if(event.key==='Enter')sendReply(${cid},this.value)">
+    </div>`;
+}
+
+function sendReply(cid,txt){
+  if(!txt.trim())return;
+  const key="cmt_"+id;
+  const data=JSON.parse(localStorage.getItem(key)||"[]");
+  data.find(x=>x.id===cid).reply.push(txt);
+  localStorage.setItem(key,JSON.stringify(data));
+  loadComments();
 }
 </script>
 
