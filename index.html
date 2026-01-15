@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web Note Share</title>
+
+<style>
+body{
+    margin:0;
+    padding:0;
+    background:#fff;
+    font-family: Arial, sans-serif;
+}
+
+.page{
+    max-width:800px;
+    margin:auto;
+    padding:20px;
+}
+
+input, textarea{
+    width:100%;
+    border:none;
+    outline:none;
+    font-size:16px;
+    margin-bottom:15px;
+}
+
+input{
+    font-size:22px;
+    font-weight:bold;
+}
+
+textarea{
+    min-height:250px;
+    resize:none;
+}
+
+button{
+    width:100%;
+    padding:12px;
+    font-size:16px;
+    background:#007bff;
+    color:white;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+.note-content a{
+    color:#007bff;
+    text-decoration:underline;
+    word-break:break-all;
+}
+
+.comment-box{
+    margin-top:30px;
+    border-top:1px solid #ddd;
+    padding-top:15px;
+}
+
+.comment{
+    padding:8px;
+    border-bottom:1px solid #eee;
+    font-size:14px;
+}
+</style>
+</head>
+<body>
+
+<div class="page" id="createPage">
+    <input id="title" placeholder="Tiêu đề note...">
+    <textarea id="content" placeholder="Nhập nội dung... dán link thoải mái"></textarea>
+    <button onclick="createLink()">🔗 Tạo link</button>
+</div>
+
+<div class="page" id="viewPage" style="display:none;">
+    <h2 id="viewTitle"></h2>
+    <div id="viewContent" class="note-content"></div>
+
+    <div class="comment-box">
+        <h3>Bình luận</h3>
+        <input id="commentInput" placeholder="Nhập bình luận...">
+        <button onclick="addComment()">Gửi bình luận</button>
+        <div id="comments"></div>
+    </div>
+</div>
+
+<script>
+function autoLink(text){
+    return text.replace(
+        /(https?:\/\/[^\s]+)/g,
+        '<a href="$1" target="_blank">$1</a>'
+    ).replace(/\n/g,"<br>");
+}
+
+const params = new URLSearchParams(window.location.search);
+const data = params.get("data");
+
+if(data){
+    document.getElementById("createPage").style.display="none";
+    document.getElementById("viewPage").style.display="block";
+
+    const decoded = JSON.parse(atob(data));
+    document.getElementById("viewTitle").innerText = decoded.title;
+    document.getElementById("viewContent").innerHTML = autoLink(decoded.content);
+
+    loadComments();
+}
+
+function createLink(){
+    const title = document.getElementById("title").value.trim();
+    const content = document.getElementById("content").value.trim();
+
+    if(!title || !content){
+        alert("Nhập đủ tiêu đề và nội dung");
+        return;
+    }
+
+    const obj = {title, content};
+    const encoded = btoa(JSON.stringify(obj));
+    const link = location.origin + location.pathname + "?data=" + encoded;
+
+    navigator.clipboard.writeText(link);
+    alert("Đã tạo link và copy 📋\n\n" + link);
+}
+
+function loadComments(){
+    const key = "cmt_" + data;
+    const list = JSON.parse(localStorage.getItem(key) || "[]");
+    const box = document.getElementById("comments");
+    box.innerHTML = "";
+    list.forEach(c=>{
+        const div = document.createElement("div");
+        div.className="comment";
+        div.innerText=c;
+        box.appendChild(div);
+    });
+}
+
+function addComment(){
+    const input = document.getElementById("commentInput");
+    if(!input.value.trim()) return;
+
+    const key = "cmt_" + data;
+    const list = JSON.parse(localStorage.getItem(key) || "[]");
+    list.push(input.value.trim());
+    localStorage.setItem(key, JSON.stringify(list));
+    input.value="";
+    loadComments();
+}
+</script>
+
+</body>
+</html>
