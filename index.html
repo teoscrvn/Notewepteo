@@ -8,55 +8,72 @@
 <style>
 body{
   margin:0;
-  background:#f5f6fa;
   font-family:Arial;
+  background:#f5f6fa;
   color:#000;
 }
+
 .page{max-width:800px;margin:auto;padding:15px}
+
 .card{
   background:#fff;
   border-radius:12px;
   padding:15px;
   margin-bottom:15px;
-  box-shadow:0 2px 6px rgba(0,0,0,.08)
+  box-shadow:0 2px 6px rgba(0,0,0,.08);
 }
-input,textarea{
+
+input,textarea,button{
   width:100%;
+  margin:6px 0;
   padding:12px;
-  border:1px solid #ddd;
-  border-radius:10px;
-  font-size:16px;
-  outline:none;
-}
-textarea{min-height:320px;resize:none}
-button{
-  padding:10px 14px;
-  border:none;
   border-radius:8px;
+  border:1px solid #ddd;
+  font-size:16px;
+}
+
+textarea{
+  min-height:300px;
+  resize:none;
+}
+
+button{
   background:#007bff;
   color:#fff;
-  font-size:15px;
+  border:none;
+  font-weight:bold;
+  cursor:pointer;
 }
-.note-content a{color:#007bff;word-break:break-all}
 
-/* COMMENT */
-.comment{display:flex;gap:10px;margin-top:15px}
-.avatar{
-  width:36px;height:36px;border-radius:50%;
-  background:#007bff;color:#fff;
-  display:flex;align-items:center;justify-content:center;
-  font-weight:bold
+button:hover{opacity:.9}
+
+.note-content{
+  background:#f7f7f7;
+  padding:15px;
+  border-radius:10px;
+  white-space:pre-wrap;
 }
-.c-body{
-  background:#f0f2f5;
-  padding:10px;
-  border-radius:12px;
-  flex:1
+
+.note-content a{
+  color:#007bff;
+  word-break:break-all;
 }
-.c-name{font-weight:bold;font-size:14px}
-.c-time{font-size:11px;color:#666}
-.reply{margin-left:15px;font-size:13px;color:#333}
+
 .small{font-size:12px;color:#777}
+
+/* SUPPORT BUTTON */
+.help-btn{
+  display:block;
+  margin-top:15px;
+  padding:14px;
+  text-align:center;
+  background:#ff4757;
+  color:#fff;
+  border-radius:10px;
+  font-weight:bold;
+  text-decoration:none;
+}
+.help-btn:hover{opacity:.9}
 </style>
 </head>
 
@@ -64,18 +81,25 @@ button{
 
 <div class="page" id="createPage">
 
+  <!-- TÀI KHOẢN -->
   <div class="card" id="accountBox">
     <h3>Tên hiển thị</h3>
     <input id="nameInput" placeholder="Nhập tên của bạn">
     <button onclick="saveName()">Lưu</button>
   </div>
 
+  <!-- TẠO NOTE -->
   <div class="card">
     <input id="title" placeholder="Tiêu đề note">
     <textarea id="content" placeholder="Nhập nội dung (dán link thoải mái)"></textarea>
+
+    <!-- LINK HỖ TRỢ -->
+    <input id="supportLink" placeholder="Link hỗ trợ (Zalo / TikTok / Facebook…)">
+
     <button onclick="createLink()">🔗 Tạo link</button>
   </div>
 
+  <!-- LINK ĐÃ TẠO -->
   <div class="card">
     <h3>Link đã tạo</h3>
     <div id="myLinks" class="small">Chưa có</div>
@@ -83,18 +107,16 @@ button{
 
 </div>
 
+<!-- VIEW -->
 <div class="page" id="viewPage" style="display:none">
 
   <div class="card">
     <h2 id="viewTitle"></h2>
     <div id="viewContent" class="note-content"></div>
-  </div>
 
-  <div class="card">
-    <h3>Bình luận</h3>
-    <input id="commentInput" placeholder="Viết bình luận...">
-    <button onclick="addComment()">Gửi</button>
-    <div id="comments"></div>
+    <a id="helpBtn" class="help-btn" target="_blank">
+      ❗ Có lỗi / Link lỗi – Nhấn để được hỗ trợ
+    </a>
   </div>
 
 </div>
@@ -118,18 +140,17 @@ function saveName(){
 
 // ===== UTIL =====
 function autoLink(t){
-  return t.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>')
-          .replace(/\n/g,"<br>");
+  return t.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>');
 }
 
 // ===== PARAM =====
 const params=new URLSearchParams(location.search);
 const data=params.get("data");
 
-// ===== LOCAL LIST =====
+// ===== LIST =====
 const myNotes=JSON.parse(localStorage.getItem("myNotes")||"[]");
 
-// ===== VIEW SHARE (QUAN TRỌNG) =====
+// ===== VIEW NOTE =====
 if(data){
   const note=JSON.parse(decodeURIComponent(escape(atob(data))));
   createPage.style.display="none";
@@ -137,12 +158,16 @@ if(data){
 
   viewTitle.innerHTML=`
     ${note.title}
-    <div class="small">✍ ${note.owner} · 🕒 ${note.time}</div>
+    <div class="small">✍ ${note.owner}</div>
   `;
   viewContent.innerHTML=autoLink(note.content);
 
-  window.commentKey="cmt_"+data;
-  loadComments();
+  if(note.support){
+    helpBtn.href = note.support;
+    helpBtn.style.display="block";
+  }else{
+    helpBtn.style.display="none";
+  }
 
 }else{
   renderMyLinks();
@@ -151,21 +176,24 @@ if(data){
 // ===== CREATE LINK =====
 function createLink(){
   if(!userName) return alert("Chưa có tên");
+
   const t=title.value.trim();
   const c=content.value.trim();
+  const s=supportLink.value.trim();
+
   if(!t||!c) return alert("Thiếu nội dung");
 
   const note={
     title:t,
     content:c,
     owner:userName,
-    time:new Date().toLocaleString()
+    support:s
   };
 
   const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(note))));
   const link=location.origin+location.pathname+"?data="+encoded;
 
-  myNotes.push({title:t,link,time:note.time});
+  myNotes.push({title:t,link});
   localStorage.setItem("myNotes",JSON.stringify(myNotes));
 
   navigator.clipboard.writeText(link);
@@ -173,7 +201,7 @@ function createLink(){
   renderMyLinks();
 }
 
-// ===== LIST =====
+// ===== LINKS =====
 function renderMyLinks(){
   if(!myNotes.length){
     myLinks.innerText="Chưa có";
@@ -181,42 +209,7 @@ function renderMyLinks(){
   }
   myLinks.innerHTML=myNotes.map((n,i)=>`
     ${i+1}. <a href="${n.link}">${n.title}</a>
-    <span class="small">(${n.time})</span>
   `).join("<br>");
-}
-
-// ===== COMMENTS =====
-function loadComments(){
-  const data=JSON.parse(localStorage.getItem(window.commentKey)||"[]");
-  comments.innerHTML="";
-  data.forEach(c=>{
-    comments.innerHTML+=`
-      <div class="comment">
-        <div class="avatar">${c.name[0]}</div>
-        <div class="c-body">
-          <div class="c-name">${c.name}</div>
-          <div>${c.text}</div>
-          <div class="c-time">${c.time}</div>
-          ${c.reply.map(r=>`<div class="reply">↳ ${r}</div>`).join("")}
-        </div>
-      </div>
-    `;
-  });
-}
-
-function addComment(){
-  const t=commentInput.value.trim();
-  if(!t) return;
-  const data=JSON.parse(localStorage.getItem(window.commentKey)||"[]");
-  data.push({
-    name:userName,
-    text:t,
-    time:new Date().toLocaleString(),
-    reply:[]
-  });
-  localStorage.setItem(window.commentKey,JSON.stringify(data));
-  commentInput.value="";
-  loadComments();
 }
 </script>
 
