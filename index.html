@@ -6,25 +6,29 @@
 <title>Note Share</title>
 
 <style>
-body{margin:0;background:#f5f6fa;font-family:Arial}
+body{
+  margin:0;
+  background:#f5f6fa;
+  font-family:Arial;
+  color:#000;
+}
 .page{max-width:800px;margin:auto;padding:15px}
-.card{background:#fff;border-radius:12px;padding:15px;margin-bottom:15px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
-
+.card{
+  background:#fff;
+  border-radius:12px;
+  padding:15px;
+  margin-bottom:15px;
+  box-shadow:0 2px 6px rgba(0,0,0,.08)
+}
 input,textarea{
   width:100%;
+  padding:12px;
   border:1px solid #ddd;
   border-radius:10px;
-  padding:12px;
   font-size:16px;
   outline:none;
 }
-input:focus,textarea:focus{border-color:#007bff}
-
-textarea{
-  min-height:350px;
-  resize:none;
-}
-
+textarea{min-height:320px;resize:none}
 button{
   padding:10px 14px;
   border:none;
@@ -33,82 +37,54 @@ button{
   color:#fff;
   font-size:15px;
 }
-
 .note-content a{color:#007bff;word-break:break-all}
 
 /* COMMENT */
-.comment-input{
-  display:flex;
-  gap:10px;
-}
-.comment-input input{
-  flex:1;
-  border-radius:20px;
-}
-
-.comment{
-  display:flex;
-  gap:10px;
-  margin-top:15px;
-}
+.comment{display:flex;gap:10px;margin-top:15px}
 .avatar{
-  width:38px;
-  height:38px;
-  border-radius:50%;
-  background:#007bff;
-  color:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:bold;
+  width:36px;height:36px;border-radius:50%;
+  background:#007bff;color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:bold
 }
 .c-body{
   background:#f0f2f5;
   padding:10px;
   border-radius:12px;
-  flex:1;
+  flex:1
 }
 .c-name{font-weight:bold;font-size:14px}
 .c-time{font-size:11px;color:#666}
-.reply-btn{font-size:12px;color:#007bff;cursor:pointer;margin-top:5px}
-
-.reply-box{
-  margin-top:8px;
-  display:flex;
-  gap:8px;
-}
-.reply-box input{border-radius:18px}
-
-.reply{
-  margin-top:6px;
-  font-size:13px;
-  color:#333;
-}
+.reply{margin-left:15px;font-size:13px;color:#333}
+.small{font-size:12px;color:#777}
 </style>
 </head>
+
 <body>
 
 <div class="page" id="createPage">
 
   <div class="card" id="accountBox">
-    <h3>Tạo tên hiển thị</h3>
+    <h3>Tên hiển thị</h3>
     <input id="nameInput" placeholder="Nhập tên của bạn">
     <button onclick="saveName()">Lưu</button>
   </div>
 
   <div class="card">
     <input id="title" placeholder="Tiêu đề note">
-    <textarea id="content" placeholder="Nhập nội dung note..."></textarea>
+    <textarea id="content" placeholder="Nhập nội dung (dán link thoải mái)"></textarea>
     <button onclick="createLink()">🔗 Tạo link</button>
   </div>
 
   <div class="card">
     <h3>Link đã tạo</h3>
-    <div id="myLinks">Chưa có</div>
+    <div id="myLinks" class="small">Chưa có</div>
   </div>
+
 </div>
 
 <div class="page" id="viewPage" style="display:none">
+
   <div class="card">
     <h2 id="viewTitle"></h2>
     <div id="viewContent" class="note-content"></div>
@@ -116,24 +92,22 @@ button{
 
   <div class="card">
     <h3>Bình luận</h3>
-    <div class="comment-input">
-      <input id="commentInput" placeholder="Viết bình luận...">
-      <button onclick="addComment()">Gửi</button>
-    </div>
+    <input id="commentInput" placeholder="Viết bình luận...">
+    <button onclick="addComment()">Gửi</button>
     <div id="comments"></div>
   </div>
+
 </div>
 
 <script>
 // ===== USER =====
-let userId = localStorage.getItem("uid");
-if(!userId){
-  userId="u"+Date.now();
-  localStorage.setItem("uid",userId);
-}
 let userName = localStorage.getItem("uname");
+if(!userName){
+  userName = "téo admin";
+  localStorage.setItem("uname", userName);
+}
+if(userName) accountBox.style.display="none";
 
-// ===== ACCOUNT =====
 function saveName(){
   const n=nameInput.value.trim();
   if(!n) return alert("Nhập tên");
@@ -141,98 +115,107 @@ function saveName(){
   userName=n;
   accountBox.style.display="none";
 }
-if(userName) accountBox.style.display="none";
 
 // ===== UTIL =====
 function autoLink(t){
-  return t.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>').replace(/\n/g,"<br>");
+  return t.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>')
+          .replace(/\n/g,"<br>");
 }
 
+// ===== PARAM =====
 const params=new URLSearchParams(location.search);
-const id=params.get("id");
-const notes=JSON.parse(localStorage.getItem("notes")||"{}");
+const data=params.get("data");
 
-// ===== VIEW =====
-if(id){
-  const n=notes[id];
-  if(!n) alert("Không tồn tại");
-  else{
-    createPage.style.display="none";
-    viewPage.style.display="block";
-    viewTitle.innerText=n.title;
-    viewContent.innerHTML=autoLink(n.content);
-    loadComments();
-  }
-}else renderMyLinks();
+// ===== LOCAL LIST =====
+const myNotes=JSON.parse(localStorage.getItem("myNotes")||"[]");
 
-// ===== CREATE =====
-function createLink(){
-  if(!userName) return alert("Tạo tên trước");
-  const t=title.value.trim(),c=content.value.trim();
-  if(!t||!c) return alert("Thiếu nội dung");
-  const id="n"+Date.now();
-  notes[id]={title:t,content:c,owner:userId,time:new Date().toLocaleString()};
-  localStorage.setItem("notes",JSON.stringify(notes));
-  const link=location.origin+location.pathname+"?id="+id;
-  navigator.clipboard.writeText(link);
-  alert("Đã copy link");
+// ===== VIEW SHARE (QUAN TRỌNG) =====
+if(data){
+  const note=JSON.parse(decodeURIComponent(escape(atob(data))));
+  createPage.style.display="none";
+  viewPage.style.display="block";
+
+  viewTitle.innerHTML=`
+    ${note.title}
+    <div class="small">✍ ${note.owner} · 🕒 ${note.time}</div>
+  `;
+  viewContent.innerHTML=autoLink(note.content);
+
+  window.commentKey="cmt_"+data;
+  loadComments();
+
+}else{
   renderMyLinks();
 }
 
-// ===== LINKS =====
+// ===== CREATE LINK =====
+function createLink(){
+  if(!userName) return alert("Chưa có tên");
+  const t=title.value.trim();
+  const c=content.value.trim();
+  if(!t||!c) return alert("Thiếu nội dung");
+
+  const note={
+    title:t,
+    content:c,
+    owner:userName,
+    time:new Date().toLocaleString()
+  };
+
+  const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(note))));
+  const link=location.origin+location.pathname+"?data="+encoded;
+
+  myNotes.push({title:t,link,time:note.time});
+  localStorage.setItem("myNotes",JSON.stringify(myNotes));
+
+  navigator.clipboard.writeText(link);
+  alert("Đã copy link 📋");
+  renderMyLinks();
+}
+
+// ===== LIST =====
 function renderMyLinks(){
-  const mine=Object.entries(notes).filter(x=>x[1].owner===userId);
-  myLinks.innerHTML=mine.length
-    ? mine.map((x,i)=>`${i+1}. <a href="?id=${x[0]}">${x[1].title}</a>`).join("<br>")
-    : "Chưa có";
+  if(!myNotes.length){
+    myLinks.innerText="Chưa có";
+    return;
+  }
+  myLinks.innerHTML=myNotes.map((n,i)=>`
+    ${i+1}. <a href="${n.link}">${n.title}</a>
+    <span class="small">(${n.time})</span>
+  `).join("<br>");
 }
 
 // ===== COMMENTS =====
 function loadComments(){
-  const key="cmt_"+id;
-  const data=JSON.parse(localStorage.getItem(key)||"[]");
+  const data=JSON.parse(localStorage.getItem(window.commentKey)||"[]");
   comments.innerHTML="";
   data.forEach(c=>{
     comments.innerHTML+=`
-    <div class="comment">
-      <div class="avatar">${c.name[0]}</div>
-      <div class="c-body">
-        <div class="c-name">${c.name}</div>
-        <div>${c.text}</div>
-        <div class="c-time">${c.time}</div>
-        ${notes[id].owner===userId?`<div class="reply-btn" onclick="showReply(${c.id})">Trả lời</div>`:""}
-        <div id="r${c.id}"></div>
-        ${c.reply.map(r=>`<div class="reply">↳ ${r}</div>`).join("")}
+      <div class="comment">
+        <div class="avatar">${c.name[0]}</div>
+        <div class="c-body">
+          <div class="c-name">${c.name}</div>
+          <div>${c.text}</div>
+          <div class="c-time">${c.time}</div>
+          ${c.reply.map(r=>`<div class="reply">↳ ${r}</div>`).join("")}
+        </div>
       </div>
-    </div>`;
+    `;
   });
 }
 
 function addComment(){
-  if(!userName) return alert("Chưa có tên");
   const t=commentInput.value.trim();
   if(!t) return;
-  const key="cmt_"+id;
-  const data=JSON.parse(localStorage.getItem(key)||"[]");
-  data.push({id:Date.now(),name:userName,text:t,time:new Date().toLocaleString(),reply:[]});
-  localStorage.setItem(key,JSON.stringify(data));
+  const data=JSON.parse(localStorage.getItem(window.commentKey)||"[]");
+  data.push({
+    name:userName,
+    text:t,
+    time:new Date().toLocaleString(),
+    reply:[]
+  });
+  localStorage.setItem(window.commentKey,JSON.stringify(data));
   commentInput.value="";
-  loadComments();
-}
-
-function showReply(cid){
-  document.getElementById("r"+cid).innerHTML=`
-    <div class="reply-box">
-      <input placeholder="Trả lời..." onkeydown="if(event.key==='Enter')sendReply(${cid},this.value)">
-    </div>`;
-}
-
-function sendReply(cid,txt){
-  if(!txt.trim())return;
-  const key="cmt_"+id;
-  const data=JSON.parse(localStorage.getItem(key)||"[]");
-  data.find(x=>x.id===cid).reply.push(txt);
-  localStorage.setItem(key,JSON.stringify(data));
   loadComments();
 }
 </script>

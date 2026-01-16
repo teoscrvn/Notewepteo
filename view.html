@@ -2,29 +2,20 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Xem Ghi Chú</title>
+<title>Xem Note</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h2 id="v_title"></h2>
-<p id="v_content"></p>
+<h2 id="name"></h2>
+<div id="content" class="note-box"></div>
 
-<a id="install" target="_blank">
-<button>👉 BẤM ĐỂ CÀI</button>
-</a>
-
-<hr>
 <h3>💬 Bình luận</h3>
-<input id="cname" placeholder="Tên">
-<textarea id="cmt" placeholder="Nội dung"></textarea>
-<button onclick="sendComment()">Gửi</button>
-
 <div id="comments"></div>
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="app.js"></script>
+<input id="cmtInput" placeholder="Nhập bình luận...">
+<button onclick="sendComment()">Gửi</button>
 
+<script src="main.js"></script>
 </body>
 </html>
