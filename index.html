@@ -52,6 +52,7 @@ button:hover{opacity:.9}
   padding:15px;
   border-radius:10px;
   white-space:pre-wrap;
+  word-wrap:break-word;
 }
 
 .note-content a{
@@ -61,7 +62,6 @@ button:hover{opacity:.9}
 
 .small{font-size:12px;color:#777}
 
-/* SUPPORT BUTTON */
 .help-btn{
   display:block;
   margin-top:15px;
@@ -80,138 +80,367 @@ button:hover{opacity:.9}
 <body>
 
 <div class="page" id="createPage">
-
-  <!-- TÀI KHOẢN -->
   <div class="card" id="accountBox">
     <h3>Tên hiển thị</h3>
     <input id="nameInput" placeholder="Nhập tên của bạn">
     <button onclick="saveName()">Lưu</button>
   </div>
 
-  <!-- TẠO NOTE -->
   <div class="card">
     <input id="title" placeholder="Tiêu đề note">
     <textarea id="content" placeholder="Nhập nội dung (dán link thoải mái)"></textarea>
-
-    <!-- LINK HỖ TRỢ -->
     <input id="supportLink" placeholder="Link hỗ trợ (Zalo / TikTok / Facebook…)">
-
     <button onclick="createLink()">🔗 Tạo link</button>
   </div>
 
-  <!-- LINK ĐÃ TẠO -->
   <div class="card">
-    <h3>Link đã tạo</h3>
+    <h3>Note đã tạo <button onclick="clearAllNotes()" style="background:#dc3545;padding:5px 10px;font-size:12px;float:right">Xóa tất cả</button></h3>
     <div id="myLinks" class="small">Chưa có</div>
   </div>
-
 </div>
 
-<!-- VIEW -->
 <div class="page" id="viewPage" style="display:none">
-
   <div class="card">
     <h2 id="viewTitle"></h2>
     <div id="viewContent" class="note-content"></div>
-
     <a id="helpBtn" class="help-btn" target="_blank">
       ❗ Có lỗi / Link lỗi – Nhấn để được hỗ trợ
     </a>
+    <div style="text-align:center;margin-top:20px;">
+      <button onclick="window.location.href='?'" style="background:#6c757d;padding:10px 20px;">
+        ← Tạo note mới
+      </button>
+    </div>
   </div>
-
 </div>
 
 <script>
-// ===== USER =====
-let userName = localStorage.getItem("uname");
-if(!userName){
-  userName = "téo admin";
-  localStorage.setItem("uname", userName);
-}
-if(userName) accountBox.style.display="none";
+// ===== KHỞI TẠO =====
+const NOTES_STORAGE = "noteShare_notes";
+const LINKS_STORAGE = "noteShare_links";
 
-function saveName(){
-  const n=nameInput.value.trim();
-  if(!n) return alert("Nhập tên");
-  localStorage.setItem("uname",n);
-  userName=n;
-  accountBox.style.display="none";
-}
+let userName = localStorage.getItem("uname") || "";
+let myNotes = JSON.parse(localStorage.getItem(LINKS_STORAGE) || "[]");
 
-// ===== UTIL =====
-function autoLink(t){
-  return t.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>');
-}
-
-// ===== PARAM =====
-const params=new URLSearchParams(location.search);
-const data=params.get("data");
-
-// ===== LIST =====
-const myNotes=JSON.parse(localStorage.getItem("myNotes")||"[]");
-
-// ===== VIEW NOTE =====
-if(data){
-  const note=JSON.parse(decodeURIComponent(escape(atob(data))));
-  createPage.style.display="none";
-  viewPage.style.display="block";
-
-  viewTitle.innerHTML=`
-    ${note.title}
-    <div class="small">✍ ${note.owner}</div>
-  `;
-  viewContent.innerHTML=autoLink(note.content);
-
-  if(note.support){
-    helpBtn.href = note.support;
-    helpBtn.style.display="block";
-  }else{
-    helpBtn.style.display="none";
+// ===== KHỞI CHẠY =====
+document.addEventListener('DOMContentLoaded', function() {
+  if (userName) {
+    accountBox.style.display = "none";
+    nameInput.value = userName;
   }
+  
+  const params = new URLSearchParams(location.search);
+  const noteId = params.get("id");
+  
+  if (noteId) {
+    loadNoteById(noteId);
+  } else {
+    renderMyLinks();
+  }
+});
 
-}else{
-  renderMyLinks();
+// ===== USER =====
+function saveName() {
+  const n = nameInput.value.trim();
+  if (!n) return alert("Nhập tên");
+  localStorage.setItem("uname", n);
+  userName = n;
+  accountBox.style.display = "none";
+  alert("Đã lưu tên!");
 }
 
-// ===== CREATE LINK =====
-function createLink(){
-  if(!userName) return alert("Chưa có tên");
-
-  const t=title.value.trim();
-  const c=content.value.trim();
-  const s=supportLink.value.trim();
-
-  if(!t||!c) return alert("Thiếu nội dung");
-
-  const note={
-    title:t,
-    content:c,
-    owner:userName,
-    support:s
-  };
-
-  const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(note))));
-  const link=location.origin+location.pathname+"?data="+encoded;
-
-  myNotes.push({title:t,link});
-  localStorage.setItem("myNotes",JSON.stringify(myNotes));
-
-  navigator.clipboard.writeText(link);
-  alert("Đã copy link 📋");
-  renderMyLinks();
-}
-
-// ===== LINKS =====
-function renderMyLinks(){
-  if(!myNotes.length){
-    myLinks.innerText="Chưa có";
+// ===== TẠO NOTE MỚI =====
+function createLink() {
+  if (!userName) {
+    alert("Chưa có tên");
+    accountBox.style.display = "block";
     return;
   }
-  myLinks.innerHTML=myNotes.map((n,i)=>`
-    ${i+1}. <a href="${n.link}">${n.title}</a>
-  `).join("<br>");
-}
-</script>
 
+  const t = title.value.trim();
+  const c = content.value.trim();
+  const s = supportLink.value.trim();
+
+  if (!t || !c) {
+    alert("Thiếu nội dung");
+    return;
+  }
+
+  // Tạo ID ngắn duy nhất
+  const noteId = generateShortId();
+  
+  const note = {
+    id: noteId,
+    title: t,
+    content: c,
+    owner: userName,
+    support: s,
+    created: Date.now()
+  };
+
+  // Lưu note vào storage
+  saveNoteToStorage(note);
+  
+  // Tạo link ngắn với ID
+  const base = location.href.split("?")[0].split("#")[0];
+  const link = base + "?id=" + noteId;
+  
+  // Lưu vào lịch sử
+  myNotes.unshift({
+    id: noteId,
+    title: t,
+    link: link,
+    time: new Date().toLocaleString('vi-VN')
+  });
+  
+  // Giới hạn 100 note gần nhất
+  if (myNotes.length > 100) {
+    myNotes = myNotes.slice(0, 100);
+  }
+  
+  localStorage.setItem(LINKS_STORAGE, JSON.stringify(myNotes));
+  
+  // Copy link
+  copyToClipboard(link, "✅ Đã tạo và copy link!\n\nID: " + noteId);
+  
+  // Reset form
+  title.value = '';
+  content.value = '';
+  supportLink.value = '';
+  
+  renderMyLinks();
+}
+
+// ===== TẢI NOTE TỪ ID =====
+function loadNoteById(noteId) {
+  try {
+    const allNotes = JSON.parse(localStorage.getItem(NOTES_STORAGE) || "{}");
+    const note = allNotes[noteId];
+    
+    if (!note) {
+      throw new Error("Note không tồn tại");
+    }
+    
+    // Hiển thị note
+    createPage.style.display = "none";
+    viewPage.style.display = "block";
+    
+    viewTitle.innerHTML = `
+      ${note.title || 'Không tiêu đề'}
+      <div class="small">✍ ${note.owner || 'Ẩn danh'} | ID: ${noteId}</div>
+    `;
+    
+    // Xử lý content đúng thứ tự
+    let content = note.content || '';
+    content = autoLink(content);
+    content = content.replace(/\n/g, '<br>');
+    viewContent.innerHTML = content;
+    
+    // Link hỗ trợ
+    if (note.support && note.support.trim()) {
+      let supportLink = note.support.trim();
+      if (!supportLink.startsWith('http://') && !supportLink.startsWith('https://')) {
+        supportLink = 'https://' + supportLink;
+      }
+      helpBtn.href = supportLink;
+      helpBtn.style.display = "block";
+    } else {
+      helpBtn.style.display = "none";
+    }
+    
+    // Thêm vào lịch sử nếu chưa có
+    addToHistoryIfNotExists(noteId, note.title);
+    
+  } catch (error) {
+    console.error("Lỗi tải note:", error);
+    createPage.style.display = "none";
+    viewPage.style.display = "block";
+    viewTitle.textContent = "❌ Lỗi";
+    viewContent.innerHTML = `
+      <div style="text-align:center; padding:30px; color:#666">
+        <h3>Không thể tải note</h3>
+        <p>Note này có thể đã bị xóa hoặc không tồn tại.</p>
+        <p><strong>ID:</strong> ${noteId}</p>
+        <button onclick="window.location.href='?'" style="margin-top:20px; padding:10px 20px;">
+          ← Quay lại
+        </button>
+      </div>
+    `;
+    helpBtn.style.display = "none";
+  }
+}
+
+// ===== TIỆN ÍCH =====
+function generateShortId() {
+  // Tạo ID ngắn: timestamp + random string
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+
+function saveNoteToStorage(note) {
+  const allNotes = JSON.parse(localStorage.getItem(NOTES_STORAGE) || "{}");
+  allNotes[note.id] = note;
+  localStorage.setItem(NOTES_STORAGE, JSON.stringify(allNotes));
+}
+
+function addToHistoryIfNotExists(noteId, title) {
+  const exists = myNotes.some(note => note.id === noteId);
+  if (!exists && title) {
+    const base = location.href.split("?")[0].split("#")[0];
+    const link = base + "?id=" + noteId;
+    
+    myNotes.unshift({
+      id: noteId,
+      title: title,
+      link: link,
+      time: new Date().toLocaleString('vi-VN')
+    });
+    
+    if (myNotes.length > 100) {
+      myNotes = myNotes.slice(0, 100);
+    }
+    
+    localStorage.setItem(LINKS_STORAGE, JSON.stringify(myNotes));
+  }
+}
+
+function autoLink(text) {
+  if (!text) return '';
+  
+  // Escape HTML trước
+  let escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+  
+  // Link hóa URL sau khi escape
+  const urlRegex = /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/gi;
+  return escaped.replace(urlRegex, function(match) {
+    // Decode tạm để lấy URL đúng cho href
+    const cleanUrl = match
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'");
+    return `<a href="${cleanUrl}" target="_blank" rel="noopener">${match}</a>`;
+  });
+}
+
+function copyToClipboard(text, message) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert(message || "✅ Đã copy!");
+    }).catch(() => {
+      copyFallback(text, message);
+    });
+  } else {
+    copyFallback(text, message);
+  }
+}
+
+function copyFallback(text, message) {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  
+  try {
+    document.execCommand('copy');
+    alert(message || "✅ Đã copy!");
+  } catch (err) {
+    prompt("Copy link thủ công:", text);
+  }
+  
+  document.body.removeChild(textarea);
+}
+
+function renderMyLinks() {
+  if (!myNotes || myNotes.length === 0) {
+    myLinks.innerHTML = '<p style="color:#666;text-align:center">Chưa có note nào</p>';
+    return;
+  }
+  
+  myLinks.innerHTML = myNotes.map((note, index) => `
+    <div style="margin:10px 0; padding:10px; background:#f9f9f9; border-radius:8px; border-left:3px solid #007bff;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <strong>${index + 1}. ${note.title || 'Không tiêu đề'}</strong>
+          <div style="font-size:11px; color:#666; margin-top:3px;">
+            🕒 ${note.time} | ID: ${note.id.substring(0, 8)}...
+          </div>
+        </div>
+        <div>
+          <button onclick="copyToClipboard('${note.link}', '✅ Đã copy link!')" style="background:#28a745; padding:5px 10px; font-size:12px; margin-right:5px;">
+            📋
+          </button>
+          <button onclick="deleteNote('${note.id}')" style="background:#dc3545; padding:5px 10px; font-size:12px;">
+            🗑️
+          </button>
+        </div>
+      </div>
+      <div style="margin-top:8px; word-break:break-all; font-size:12px;">
+        <a href="${note.link}">${note.link}</a>
+      </div>
+    </div>
+  `).join('');
+}
+
+function deleteNote(noteId) {
+  if (!confirm("Xóa note này?\nLưu ý: Link chia sẻ sẽ không hoạt động nữa.")) return;
+  
+  // Xóa khỏi lịch sử
+  myNotes = myNotes.filter(note => note.id !== noteId);
+  localStorage.setItem(LINKS_STORAGE, JSON.stringify(myNotes));
+  
+  // Xóa khỏi storage
+  const allNotes = JSON.parse(localStorage.getItem(NOTES_STORAGE) || "{}");
+  delete allNotes[noteId];
+  localStorage.setItem(NOTES_STORAGE, JSON.stringify(allNotes));
+  
+  renderMyLinks();
+  alert("Đã xóa note!");
+}
+
+function clearAllNotes() {
+  if (!confirm("XÓA TẤT CẢ NOTE?\n\nHành động này sẽ xóa mọi note và không thể khôi phục!")) return;
+  
+  localStorage.removeItem(NOTES_STORAGE);
+  localStorage.removeItem(LINKS_STORAGE);
+  myNotes = [];
+  
+  renderMyLinks();
+  alert("Đã xóa tất cả note!");
+}
+
+// ===== THÊM CẢNH BÁO =====
+window.addEventListener('load', function() {
+  // Hiển thị thông tin
+  const allNotes = JSON.parse(localStorage.getItem(NOTES_STORAGE) || "{}");
+  const noteCount = Object.keys(allNotes).length;
+  
+  if (noteCount > 0) {
+    console.log(`Đang lưu ${noteCount} note trong bộ nhớ`);
+  }
+  
+  // Cảnh báo về localStorage
+  if (location.protocol === 'file:') {
+    const warning = document.createElement('div');
+    warning.innerHTML = `
+      <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:10px; margin:10px 0; color:#856404;">
+        <strong>⚠ Lưu ý:</strong> Note được lưu trên máy này. Chia sẻ link chỉ hoạt động trên cùng máy/trình duyệt.
+      </div>
+    `;
+    
+    const firstCard = document.querySelector('.card');
+    if (firstCard) {
+      firstCard.parentNode.insertBefore(warning, firstCard);
+    }
+  }
+});
+</script>
 </body>
 </html>
